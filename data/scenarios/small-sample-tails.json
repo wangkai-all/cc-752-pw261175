@@ -1,0 +1,191 @@
+{
+  "name": "小样本尾部敏感性",
+  "description": "每个零件只有 14 行测量，且偏差分布右偏。经验重采样只能在已观测值内取值，参数分布会向尾部外推；两种方式在小样本尾部的结论不同，这里并排给出敏感性。",
+  "story": "小样本 + 偏态：经验重采样最多重复观测到的最大值，参数正态/t 分布能越过观测范围。轴向/径向对尾部的敏感度不同，并排比较经验、正态、t 尾三种假设，避免把某一种模型的尾部当成事实。",
+  "parts": [
+    {
+      "id": "flange",
+      "label": "法兰",
+      "variables": [
+        {
+          "id": "holePos",
+          "label": "孔位偏差",
+          "unit": "mm",
+          "dist": "auto",
+          "spec": {
+            "lower": -0.01,
+            "upper": 0.04
+          },
+          "cost": {
+            "perShift": 600,
+            "perSigma": 500,
+            "maxShift": 0.008,
+            "minSigmaScale": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "id": "sleeve",
+      "label": "轴套",
+      "variables": [
+        {
+          "id": "pinPos",
+          "label": "销位偏差",
+          "unit": "mm",
+          "dist": "auto",
+          "spec": {
+            "lower": -0.01,
+            "upper": 0.03
+          },
+          "cost": {
+            "perShift": 600,
+            "perSigma": 500,
+            "maxShift": 0.008,
+            "minSigmaScale": 0.5
+          }
+        }
+      ]
+    }
+  ],
+  "datasets": {
+    "flange": {
+      "columns": [
+        "holePos"
+      ],
+      "rows": [
+        [
+          0.01
+        ],
+        [
+          0.0115
+        ],
+        [
+          0.0205
+        ],
+        [
+          0.0084
+        ],
+        [
+          0.0092
+        ],
+        [
+          0.0033
+        ],
+        [
+          0.016
+        ],
+        [
+          0.0099
+        ],
+        [
+          0.0209
+        ],
+        [
+          0.0257
+        ],
+        [
+          0.0099
+        ],
+        [
+          0.0035
+        ],
+        [
+          0.0028
+        ],
+        [
+          0.0061
+        ]
+      ]
+    },
+    "sleeve": {
+      "columns": [
+        "pinPos"
+      ],
+      "rows": [
+        [
+          0.0113
+        ],
+        [
+          0.0147
+        ],
+        [
+          0.0005
+        ],
+        [
+          0.0008
+        ],
+        [
+          0.0003
+        ],
+        [
+          0
+        ],
+        [
+          0.002
+        ],
+        [
+          0.0217
+        ],
+        [
+          0.0126
+        ],
+        [
+          0.0049
+        ],
+        [
+          0.0108
+        ],
+        [
+          0.0201
+        ],
+        [
+          0.0022
+        ],
+        [
+          0.0138
+        ]
+      ]
+    }
+  },
+  "constraints": [
+    {
+      "id": "interference",
+      "label": "装配偏差",
+      "kind": "assembly",
+      "terms": [
+        {
+          "part": "flange",
+          "variable": "holePos",
+          "coef": 1
+        },
+        {
+          "part": "sleeve",
+          "variable": "pinPos",
+          "coef": -1
+        }
+      ],
+      "lower": -0.004,
+      "upper": 0.03
+    }
+  ],
+  "simulation": {
+    "seed": 20261127,
+    "drawsPerPart": 4000,
+    "method": "empirical",
+    "correlationShrinkage": 0.1,
+    "tailSensitivity": true
+  },
+  "budget": {
+    "total": 30,
+    "currency": "元"
+  },
+  "meta": {
+    "accent": "small-sample",
+    "tags": [
+      "小样本",
+      "尾部敏感",
+      "积分/穷举对照"
+    ]
+  }
+}

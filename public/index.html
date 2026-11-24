@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>公差联合合格率工作台</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232a78d6'/%3E%3Cpath d='M8 21l5-6 4 3 7-9' stroke='%23fff' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">公</div>
+      <div>
+        <div class="brand-title">公差联合合格率工作台</div>
+        <div class="brand-sub">导入测量 → 联合模拟 → 预算内调整 → 可解释结论</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="scenario-chip" id="scenarioChip" hidden>
+        <span class="dot" aria-hidden="true"></span>
+        <b id="scenarioChipName">—</b>
+        <span class="muted tiny" id="scenarioChipMeta"></span>
+      </div>
+      <button class="btn" id="themeToggle" type="button" title="切换深色/浅色">◐ 主题</button>
+      <button class="btn" id="loadDemoBtn" type="button">载入示例</button>
+      <button class="btn primary" id="newScenarioBtn" type="button">＋ 新建分析</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="分析步骤">
+    <button class="tab" role="tab" data-panel="onboard" aria-selected="true">① 输入</button>
+    <button class="tab" role="tab" data-panel="overview" aria-selected="false">② 联合模拟</button>
+    <button class="tab" role="tab" data-panel="explain" aria-selected="false">③ 解释与验证</button>
+    <button class="tab" role="tab" data-panel="optimize" aria-selected="false">④ 调整优化</button>
+    <button class="tab" role="tab" data-panel="compare" aria-selected="false">⑤ 方案对比</button>
+  </nav>
+
+  <main>
+    <!-- ============ ① onboarding ============ -->
+    <section class="panel" id="panel-onboard" role="tabpanel">
+      <div id="onboardDemoPicker" hidden style="margin-bottom:16px"></div>
+
+      <div class="onboard" id="onboardStart">
+        <div class="onboard-hero">
+          <h1>从一份成组测量开始</h1>
+          <p>每个零件一行、每个尺寸一列，行内相关性被完整保留。导入测量与装配约束，估计多个尺寸同时满足时的<b>联合</b>合格率，并在加工调整预算内寻找最有效的中心值或容差调整。</p>
+        </div>
+        <div class="import-grid">
+          <button class="import-card" id="startDemo" type="button">
+            <span class="big" aria-hidden="true">▦</span>
+            <h3>载入虚构示例</h3>
+            <p>5 个内置场景：装配失败反例、强相关、外推、小样本尾部、小维度校核。适合先看完整流程。</p>
+          </button>
+          <button class="import-card" id="startPaste" type="button">
+            <span class="big" aria-hidden="true">⤓</span>
+            <h3>粘贴 CSV / JSON</h3>
+            <p>粘贴每个零件的测量表（含表头），再填写装配约束。适合把现有台账直接搬进来。</p>
+          </button>
+          <button class="import-card" id="startFile" type="button">
+            <span class="big" aria-hidden="true">⎘</span>
+            <h3>打开方案文件</h3>
+            <p>读取此前保存的 .json 方案，或把文件拖到页面上。参数、预算和测量数据都会恢复，随即重新分析。</p>
+          </button>
+        </div>
+        <div class="card" style="margin-top:20px">
+          <div class="card-head"><div><h2>这个工具会回答什么</h2>
+            <div class="sub">以及它刻意不做什么</div></div></div>
+          <div class="grid cols-2">
+            <div class="stack">
+              <p class="small"><b>会回答：</b>多个尺寸各自合格时，装在一起同时合格的概率是多少；失败主要出在哪条约束、哪个尺寸；在调整预算内，动哪个加工参数最划算；结论有多稳、哪些部分在数据范围之外。</p>
+              <p class="small"><b>会保留：</b>同一零件的尺寸相关性（整行重采样、相关矩阵），不会把各维分别打乱当作独立样本。</p>
+            </div>
+            <div class="stack">
+              <p class="small"><b>不会做：</b>直接删掉“难看”的样本、篡改测量值、把成本算在一个参数版本上而模拟另一个版本。所有调整都是明确的加工参数（中心偏移 / 标准差倍率），并受工艺可达范围与预算约束。</p>
+              <p class="small"><b>会标注：</b>没有测量数据覆盖的约束一律标为“外推”，不把假设当结论。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="onboardBuilder" hidden>
+        <div class="steps" id="builderSteps">
+          <span class="step-pill active"><span class="n">1</span>测量数据</span>
+          <span class="step-pill"><span class="n">2</span>装配约束与预算</span>
+          <span class="step-pill"><span class="n">3</span>确认并运行</span>
+        </div>
+
+        <div class="card" id="builderStep1">
+          <div class="card-head">
+            <div><h2>测量数据</h2><div class="sub">每个零件一张表；每行是一个真实零件，列是该零件的尺寸。行不能被拆散或重排。</div></div>
+            <div class="actions">
+              <button class="btn sm" id="pasteExampleBtn" type="button">填入示例表</button>
+              <button class="btn sm" id="fileImportInputBtn" type="button">从文件导入</button>
+              <input type="file" id="fileImportInput" accept=".json,.csv,.txt" hidden>
+            </div>
+          </div>
+          <div class="stack" id="partDataList"></div>
+          <div class="row" style="margin-top:12px">
+            <button class="btn sm" id="addPartBtn" type="button">＋ 添加零件</button>
+            <span class="hint">至少一个零件、每个零件至少 3 行、至少一个装配约束。</span>
+          </div>
+        </div>
+
+        <div class="card" id="builderStep2">
+          <div class="card-head">
+            <div><h2>装配约束与调整预算</h2><div class="sub">约束是尺寸的线性组合（公差叠加）。例如端隙 = 止口深度 − 轴长 − 垫片厚度，上下界为装配要求。</div></div>
+          </div>
+          <div class="stack" id="constraintList"></div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn sm" id="addConstraintBtn" type="button">＋ 添加约束</button>
+          </div>
+          <div class="divider"></div>
+          <div class="grid cols-3">
+            <div class="field"><label for="budgetName">方案名称</label><input type="text" id="budgetName" placeholder="例如：减速器端盖装配"></div>
+            <div class="field"><label for="budgetTotal">调整预算上限</label><input type="number" id="budgetTotal" min="0" step="1" value="50"></div>
+            <div class="field"><label for="budgetCurrency">货币单位</label><input type="text" id="budgetCurrency" value="元"></div>
+          </div>
+          <div class="divider"></div>
+          <div class="grid cols-3">
+            <div class="field"><label for="simMethod">抽样方式</label>
+              <select id="simMethod">
+                <option value="empirical">经验分布重采样（保留整行）</option>
+                <option value="parametric">参数分布（相关矩阵 + 拟合边际）</option>
+              </select>
+            </div>
+            <div class="field"><label for="simDraws">抽样次数</label>
+              <select id="simDraws">
+                <option value="1000">1,000（快速）</option>
+                <option value="4000" selected>4,000（推荐）</option>
+                <option value="12000">12,000（更稳）</option>
+                <option value="30000">30,000（慢）</option>
+              </select>
+            </div>
+            <div class="field"><label for="simSeed">随机种子</label><input type="number" id="simSeed" value="20261124" step="1"></div>
+          </div>
+        </div>
+
+        <div class="card" id="builderStep3">
+          <div class="card-head"><div><h2>确认</h2><div class="sub">运行后会先给出基础联合合格率与每条约束的单尺寸合格率。</div></div></div>
+          <div id="builderSummary" class="stack"></div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn" id="saveScenarioBtn" type="button">下载方案 .json</button>
+            <span class="spacer"></span>
+            <button class="btn primary" id="runAnalyzeBtn" type="button">运行分析 →</button>
+          </div>
+          <div id="builderError" class="callout danger" style="margin-top:12px" hidden></div>
+        </div>
+      </div>
+
+      <div class="card" id="onboardPaste" hidden style="margin-top:16px">
+        <div class="card-head">
+          <div><h2>粘贴数据</h2><div class="sub">支持方案 JSON（最完整），或按零件分节的 CSV 文本。</div></div>
+          <div class="actions"><button class="btn sm" id="pasteFormatHelp">格式说明</button></div>
+        </div>
+        <div class="field">
+          <label for="pasteArea">粘贴内容</label>
+          <textarea id="pasteArea" rows="14" placeholder="方案 JSON，或：
+# 零件 housing | 壳体
+depth,length
+12.01,11.66
+12.03,11.64
+..."></textarea>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn primary" id="parsePasteBtn" type="button">解析并进入构建器</button>
+          <span class="hint">解析后仍可在构建器中逐项修改。</span>
+        </div>
+        <div id="pasteError" class="callout danger" style="margin-top:10px" hidden></div>
+      </div>
+    </section>
+
+    <!-- ============ ② overview ============ -->
+    <section class="panel" id="panel-overview" role="tabpanel" hidden>
+      <div id="overviewEmpty" class="card empty">
+        <h3>还没有运行结果</h3>
+        <p>先在「输入」里导入或载入一个方案。</p>
+      </div>
+      <div id="overviewContent" hidden>
+        <div class="metric-grid" id="metricGrid"></div>
+
+        <div id="coverageBanner" class="callout warn" style="margin-top:16px" hidden></div>
+
+        <div class="grid cols-2" style="margin-top:16px">
+          <div class="card">
+            <div class="card-head"><div><h2>联合合格率 vs 单尺寸合格率</h2>
+              <div class="sub">单尺寸合格率相乘是“若各约束相互独立”的假想值；实际装配要同时满足全部约束。</div></div></div>
+            <div id="trapBars"></div>
+            <div class="legend">
+              <span><span class="sw" style="background:var(--series-1)"></span>联合合格率（真实口径）</span>
+              <span><span class="sw" style="background:var(--series-2)"></span>单尺寸合格率连乘（仅作对照）</span>
+            </div>
+            <p class="hint" id="trapNote" style="margin-top:10px"></p>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h2>每条约束的失败构成</h2>
+              <div class="sub">按约束统计不合格次数，区分低于下界 / 高于上界。</div></div></div>
+            <div id="failureBars"></div>
+            <div class="legend">
+              <span><span class="sw" style="background:var(--status-critical)"></span>高于上界</span>
+              <span><span class="sw" style="background:var(--status-serious)"></span>低于下界</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-head">
+            <div><h2>约束分布</h2><div class="sub">每条约束的抽样分布与装配上下界；红色竖线为限值。</div></div>
+            <div class="actions">
+              <select id="distConstraintSelect" aria-label="选择约束"></select>
+            </div>
+          </div>
+          <div class="grid cols-2">
+            <div class="chart-shell" id="distChart"></div>
+            <div>
+              <div id="distTable"></div>
+              <p class="hint" style="margin-top:8px">图中柱高为抽样频数；红色柱表示该区间的样本整体落在规格之外。表视图在下方可展开。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-head">
+            <div><h2>抽样方式与尾部敏感性</h2>
+              <div class="sub">同一批样本规模下，比较经验重采样、参数正态、重尾 t、以及错误对照（独立重排）。</div></div>
+            <div class="actions"><button class="btn sm" id="refreshTailsBtn" type="button">重新计算</button></div>
+          </div>
+          <div id="tailsBars"></div>
+          <div class="legend">
+            <span><span class="sw" style="background:var(--series-1)"></span>有效模型</span>
+            <span><span class="sw" style="background:var(--muted)"></span>错误对照（破坏相关结构）</span>
+          </div>
+          <p class="hint" id="tailsNote" style="margin-top:10px"></p>
+          <details class="tech" style="margin-top:12px">
+            <summary>查看尾部差异的分布叠加</summary>
+            <div class="row" style="margin:10px 0 6px">
+              <label class="small muted" for="tailConstraintSelect">约束</label>
+              <select id="tailConstraintSelect"></select>
+            </div>
+            <div class="chart-shell" id="tailOverlay"></div>
+            <p class="hint">经验重采样不会越过观测到的极值；参数模型会外推到尾部。两者差异就是“尾部假设”的不确定性。</p>
+          </details>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-head"><div><h2>抽样稳定性</h2><div class="sub">把抽样分成若干批，检查批间差异是否只相当于二项抽样噪声。</div></div></div>
+          <div id="stabilityBox"></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-head"><div><h2>随机抽样明细</h2><div class="sub">逐次模拟的合格原因可下载；表格中最多显示 200 行。</div></div>
+            <div class="actions">
+              <button class="btn sm" id="downloadFailuresBtn" type="button">下载每次模拟的合格原因 (CSV)</button>
+            </div>
+          </div>
+          <div id="failureTable"></div>
+        </div>
+
+        <details class="tech" style="margin-top:16px" id="overviewTableToggle">
+          <summary>表格视图：基础结果</summary>
+          <div id="overviewTable" style="margin-top:12px"></div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ============ ③ explain ============ -->
+    <section class="panel" id="panel-explain" role="tabpanel" hidden>
+      <div id="explainEmpty" class="card empty"><h3>还没有结果</h3><p>先运行一次联合模拟。</p></div>
+      <div id="explainContent" hidden>
+        <div class="toolbar">
+          <div class="field"><label for="sectionX">横轴尺寸</label><select id="sectionX"></select></div>
+          <div class="field"><label for="sectionY">纵轴尺寸</label><select id="sectionY"></select></div>
+          <div class="field">
+            <label for="sectionFixKey">锁定一个工艺参数（可选）</label>
+            <select id="sectionFixKey"><option value="">不锁定</option></select>
+          </div>
+          <div class="field"><label for="sectionFixValue">锁定值</label><input type="number" id="sectionFixValue" step="0.001" disabled></div>
+          <button class="btn" id="drawSectionBtn" type="button">绘制截面</button>
+          <span class="spacer"></span>
+          <span class="small muted" id="sectionMeta"></span>
+        </div>
+
+        <div class="grid cols-2">
+          <div class="card">
+            <div class="card-head"><div><h2>二维截面</h2><div class="sub">每个点是一次模拟。红点为未通过全部约束的模拟；悬停看具体原因。</div></div></div>
+            <div class="chart-shell" id="sectionChart"></div>
+            <div class="legend">
+              <span><span class="sw" style="background:var(--status-good);opacity:.55"></span>联合合格</span>
+              <span><span class="sw ring"></span>联合不合格</span>
+            </div>
+            <p class="hint" id="sectionNote" style="margin-top:8px"></p>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h2>截面解释</h2><div class="sub">该截面的联合合格率、相关约束和失败方向。</div></div></div>
+            <div id="sectionExplain"></div>
+          </div>
+        </div>
+
+        <div class="grid cols-2" style="margin-top:16px">
+          <div class="card">
+            <div class="card-head"><div><h2>零件内相关结构</h2><div class="sub">同一零件的尺寸相关性被保留；这是联合合格率的来源之一。</div></div></div>
+            <div id="corrTables"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h2>单尺寸 vs 联合</h2><div class="sub">每个尺寸自身规格内合格率与装配约束的关系。</div></div></div>
+            <div id="dimTable"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-head"><div><h2>对照与验证</h2><div class="sub">小维度用穷举 / 数值积分给出精确解；大样本检查跨种子与不同样本量的稳定性。</div></div>
+            <div class="actions"><button class="btn primary" id="runVerifyBtn" type="button">运行对照</button></div>
+          </div>
+          <div id="verifyBox"><p class="hint">点击“运行对照”生成：穷举（适用时）、二维数值积分（适用时）、多种子稳定性、不同样本量收敛曲线，以及“独立重排”错误对照。</p></div>
+        </div>
+
+        <details class="tech" style="margin-top:16px">
+          <summary>方法说明（点开）</summary>
+          <div class="stack" style="margin-top:10px">
+            <p class="small"><b>经验分布重采样：</b>从每个测量表中按行有放回抽取。行是零件，所以同一零件各尺寸的相关性与非正态形状原样保留。支持范围就是观测范围——不会凭空造出比已有零件更极端的尺寸。</p>
+            <p class="small"><b>参数分布：</b>为每个尺寸拟合边际分布（正态 / t / 对数正态），并在零件内部估计相关矩阵；按相关矩阵做联合抽样。可切换到重尾 t 边际或 t Copula 来看尾部假设的影响。</p>
+            <p class="small"><b>联合合格率：</b>所有约束同时满足的抽样比例。它通常低于（有时高于）各约束单尺寸合格率的乘积，差额来自约束之间的相关——这正是不能把各维分别打乱的原因。</p>
+            <p class="small"><b>穷举对照：</b>若每个零件只有少量测量行，可枚举所有“每零件取一行”的组合，得到经验模型的精确合格率（无抽样误差）。</p>
+            <p class="small"><b>数值积分对照：</b>当约束只涉及 ≤2 个正态尺寸时，用二维网格积分求合格率，与蒙特卡洛结果比对。</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ============ ④ optimize ============ -->
+    <section class="panel" id="panel-optimize" role="tabpanel" hidden>
+      <div id="optimizeEmpty" class="card empty"><h3>还没有结果</h3><p>先运行一次联合模拟，再来寻找预算内最有效的调整。</p></div>
+      <div id="optimizeContent" hidden>
+        <div class="toolbar">
+          <div class="field"><label for="optBudget">调整预算上限</label><input type="number" id="optBudget" min="0" step="1"></div>
+          <div class="field"><label for="optMethod">模拟方式</label>
+            <select id="optMethod">
+              <option value="empirical">经验分布重采样</option>
+              <option value="parametric">参数分布</option>
+            </select>
+          </div>
+          <div class="field"><label for="optDraws">抽样次数</label>
+            <select id="optDraws"><option value="2000">2,000</option><option value="4000" selected>4,000</option><option value="8000">8,000</option></select>
+          </div>
+          <button class="btn primary" id="runOptimizeBtn" type="button">寻找最佳调整</button>
+          <span class="spacer"></span>
+          <span class="small muted" id="optMeta"></span>
+        </div>
+
+        <div id="optProgress" class="card" hidden><span class="loading"><span class="spinner"></span><span>正在评估候选参数版本（单项试探 → 组合贪心 → 坐标精修）…</span></span></div>
+
+        <div id="optResults" hidden>
+          <div class="metric-grid" id="optMetrics"></div>
+          <div class="callout info" id="optConsistency" style="margin-top:14px"></div>
+
+          <div class="grid cols-2" style="margin-top:16px">
+            <div class="card">
+              <div class="card-head"><div><h2>推荐调整：明确的加工参数</h2><div class="sub">每一项都是中心值偏移或标准差倍率，不删除任何样本。</div></div></div>
+              <div id="optAdjustments"></div>
+              <div class="divider"></div>
+              <div id="optCostBreakdown"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h2>收益 vs 成本</h2><div class="sub">每个点是一个已模拟、已计价的参数版本。折线为帕累托前沿。</div></div></div>
+              <div class="chart-shell" id="optFrontier"></div>
+              <div class="legend">
+                <span><span class="sw" style="background:var(--muted)"></span>原方案</span>
+                <span><span class="sw" style="background:var(--series-2)"></span>推荐</span>
+                <span><span class="sw" style="background:var(--series-1)"></span>可行候选</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid cols-2" style="margin-top:16px">
+            <div class="card">
+              <div class="card-head"><div><h2>单项调整排序</h2><div class="sub">一次只动一个参数时的合格率增益与性价比。</div></div></div>
+              <div id="optProbes"></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div><h2>其他可行候选</h2><div class="sub">在预算内同样有效、或在某条约束上更稳的替代方案。</div></div></div>
+              <div id="optAlternatives"></div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-head"><div><h2>约束与外推检查</h2><div class="sub">调整后的每条约束表现；含无测量覆盖的尺寸时标注外推。</div></div></div>
+            <div id="optConstraints"></div>
+          </div>
+
+          <div class="card" style="margin-top:16px">
+            <div class="card-head"><div><h2>把推荐方案送去对比</h2><div class="sub">用同一批随机样本对比原方案与推荐方案，差异为配对差。</div></div>
+              <div class="actions"><button class="btn primary" id="sendToCompareBtn" type="button">对比原方案与推荐方案 →</button></div>
+            </div>
+            <p class="hint">成本与可行性都来自推荐方案自己的参数版本；指纹会随对比一起显示，避免“算一套、模拟另一套”。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ⑤ compare ============ -->
+    <section class="panel" id="panel-compare" role="tabpanel" hidden>
+      <div id="compareEmpty" class="card empty"><h3>还没有可对比的方案</h3><p>先运行模拟，再点“对比原方案与推荐方案”。</p></div>
+      <div id="compareContent" hidden>
+        <div class="grid cols-2" id="compareCards"></div>
+        <div class="card" style="margin-top:16px">
+          <div class="card-head"><div><h2>配对差异</h2><div class="sub">同一批随机样本分别代入两个参数版本；只有版本不同，样本相同。</div></div></div>
+          <div id="compareDelta"></div>
+        </div>
+        <div class="grid cols-2" style="margin-top:16px">
+          <div class="card">
+            <div class="card-head"><div><h2>逐约束变化</h2><div class="sub">单尺寸合格率在两个版本下的变化。</div></div></div>
+            <div id="compareConstraints"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div><h2>成本与可行性</h2><div class="sub">同一参数版本下的成本、预算占用与工艺可达性。</div></div></div>
+            <div id="compareCost"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <div class="card-head"><div><h2>导出</h2><div class="sub">下载候选方案文件，或每次模拟的合格原因。</div></div>
+            <div class="actions">
+              <button class="btn sm" id="downloadCandidateBtn" type="button">下载候选方案 .json</button>
+              <button class="btn sm" id="downloadCompareFailuresBtn" type="button">下载候选方案模拟明细 (CSV)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast hidden" id="toast" role="alert"></div>
+<script src="/js/charts.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

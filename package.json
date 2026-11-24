@@ -1,0 +1,29 @@
+{
+  "name": "tolerance-yield-lab",
+  "version": "1.0.0",
+  "description": "公差分析工作台：联合装配合格率估计与加工参数优化",
+  "main": "src/server/server.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "start": "node src/server/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "tolerance-analysis",
+    "yield",
+    "monte-carlo",
+    "assembly"
+  ],
+  "author": "",
+  "license": "ISC",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "jsdom": "^27.4.0"
+  }
+}

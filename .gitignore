@@ -3,6 +3,8 @@
 .env.*
 !.env.example
 node_modules/
+.npm-cache/
+.pw-browsers/
 .venv/
 __pycache__/
 .claude/
